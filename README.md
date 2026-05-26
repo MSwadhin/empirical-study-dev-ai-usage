@@ -1,4 +1,4 @@
-# Replication Package
+# Empirical Study on the Characteristics and Evolution of AI-usage in GitHub Repositories: Evidence from Code Comments
 
 This repository contains the replication package for the paper. It is organized around five components:
 
