@@ -3,10 +3,10 @@
 This repository contains the replication package for the paper. It is organized around four components:
 
 1. `human_annotations/`
-   Human annotations for the two coding questions, adapted from the `oss-llm` repository's 500-comment annotation set. This folder also includes the original open-coding guideline used for manual taxonomy development. The annotation column names use `AI task type` and `AI contribution type` wording.
+   Human annotations for the two coding questions, 500-comment annotation set. This folder also includes the original open-coding guideline used for manual taxonomy development.
 
 2. `llm_annotation_prompts/`
-   The prompt templates used for large-scale model annotation in this project, with `AI` wording substituted for `LLM` wording.
+   The prompt templates used for large-scale model annotation.
 
 3. `dataset/`
    Gzipped JSONL dataset files for both:
@@ -30,7 +30,3 @@ This repository intentionally excludes semantic grouping, since that stage is me
 - Connected comment + code block + first-change commit records: `12,996`
 - Comment + code block records without a successfully collected first-change commit: `22,282`
 
-## Notes
-
-- The dataset files are stored as gzipped JSONL for easier distribution while staying within repository size limits.
-- The copied scripts are preserved as runnable research artifacts; some of them still point to the original study input/output layout, so they should be treated as provenance-preserving script copies rather than a fully re-wired standalone package.
