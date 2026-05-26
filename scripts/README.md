@@ -11,7 +11,7 @@ This folder contains the three main scripts requested for the replication packag
 - `cluster_first_change_commits.py`
   Clusters first-change commit messages with BERTopic.
 
-These files are copied from the working project so their logic is preserved as used in the study. They are included here as research artifacts for inspection and rerunning, but some default paths still point to the original project layout rather than this package folder.
+These files are copied from the working project so their logic is preserved as used in the study. They are included here as research artifacts for inspection and rerunning, but some default paths still point to the original project layout rather than this repository root.
 
 ## Package-local usage notes
 
