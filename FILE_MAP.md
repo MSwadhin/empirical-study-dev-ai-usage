@@ -26,13 +26,19 @@
 - `llm_annotation_prompts/prompt_1b_ai_contribution_type.txt`
   Model prompt for the contribution-type annotation question.
 
-## Connected dataset
+## Dataset files
 
-- `dataset/comment_codeblock_first_change_dataset.jsonl`
-  Compact connected dataset with the comment, code block, and first-change commit message, plus IDs and GitHub links.
+- `dataset/comment_codeblock_dataset.jsonl.gz`
+  Full block-bearing dataset with the AI-referencing comment, the extracted code block, and the identifiers and links needed to trace each record.
+
+- `dataset/comment_codeblock_first_change_dataset.jsonl.gz`
+  Connected subset with the comment, code block, and first-change commit message, plus IDs and GitHub links.
+
+- `dataset/comment_codeblock_without_first_change_dataset.jsonl.gz`
+  The subset of block-bearing records for which a first-change commit was not successfully collected.
 
 - `dataset/summary.json`
-  Record count summary for the compact connected dataset.
+  Record count summary for the dataset files.
 
 ## Scripts
 

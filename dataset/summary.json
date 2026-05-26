@@ -1,4 +1,6 @@
 {
-  "connected_rows": 12996,
-  "missing_match_ids_from_with_blocks": 0
+  "total_comment_codeblock_records": 35278,
+  "connected_first_change_records": 12996,
+  "comment_codeblock_records_without_first_change": 22282,
+  "dataset_files_are_gzipped_jsonl": true
 }

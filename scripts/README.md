@@ -29,6 +29,8 @@ python3 scripts/run_llm_annotations.py \
   --code-field code_block
 ```
 
+The packaged dataset files are stored as `.jsonl.gz`, so decompress the relevant file first if you want to use it directly with the scripts.
+
 ### 2. Cluster first-change commit messages
 
 The compact dataset already contains the `first_change_commit_message` field expected by the clustering script:
