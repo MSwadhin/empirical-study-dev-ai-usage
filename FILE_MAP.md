@@ -10,13 +10,8 @@
 - `human_annotations/human_annotations_500_ai_task_and_contribution_types.csv`
   The 500 human-annotated examples for the two coding questions, with `AI task type` and `AI contribution type` column names.
 
-## Human annotation prompts
-
-- `human_annotation_prompts/ai_task_type_annotation_prompt.txt`
-  Human annotation instructions for the task-type question.
-
-- `human_annotation_prompts/ai_contribution_type_annotation_prompt.txt`
-  Human annotation instructions for the contribution-type question.
+- `human_annotations/open_coding_annotation_guidelines.pdf`
+  The original open-coding guideline used for manual coding, axial coding, and taxonomy development.
 
 ## LLM annotation prompts
 
