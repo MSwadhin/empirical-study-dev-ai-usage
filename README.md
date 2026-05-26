@@ -33,12 +33,6 @@ This repository intentionally excludes semantic grouping, since that stage is me
 - Connected comment + code block + first-change commit records: `12,996`
 - Comment + code block records without a successfully collected first-change commit: `22,282`
 
-## Provenance
-
-- Human annotations and the original annotation prompts were taken from the public repository:
-  `https://github.com/MSwadhin/oss-llm/tree/main`
-- The dataset files and scripts come from the study workspace used to build the paper artifacts.
-
 ## Notes
 
 - The dataset files are stored as gzipped JSONL for easier distribution while staying within repository size limits.
