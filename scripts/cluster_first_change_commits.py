@@ -5,12 +5,13 @@ import argparse
 import json
 import random
 import re
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
 import nltk
 import numpy as np
-from bertopic import BERTopic
+from bertopic.vectorizers import ClassTfidfTransformer
 from hdbscan import HDBSCAN
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer
@@ -24,7 +25,7 @@ DEFAULT_RANDOM_SEED = 42
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='BERTopic API first-change commit-message topic pipeline.')
+    parser = argparse.ArgumentParser(description='Manual first-change commit-message topic pipeline.')
     parser.add_argument('--input-jsonl', default=str(DEFAULT_INPUT))
     parser.add_argument('--output-root', default=str(DEFAULT_OUTPUT))
     parser.add_argument('--embedding-model', default=DEFAULT_MODEL)
@@ -39,7 +40,7 @@ def reset_outputs(output_root: Path) -> None:
     for rel in [
         'prepared_messages.jsonl',
         'topic_assignments.jsonl',
-        'topic_info.json',
+        'topic_keywords.jsonl',
         'summary.json',
         'topic_examples.json',
     ]:
@@ -108,7 +109,6 @@ def main() -> None:
 
     prepared_rows: list[dict[str, Any]] = []
     docs: list[str] = []
-    raw_docs: list[str] = []
     for idx, row in enumerate(rows):
         raw = str(row.get('first_change_commit_message') or '').strip()
         cleaned = preprocess_message(raw, lemmatizer)
@@ -128,7 +128,6 @@ def main() -> None:
         }
         prepared_rows.append(prepared)
         docs.append(cleaned)
-        raw_docs.append(raw)
 
     write_jsonl(output_root / 'prepared_messages.jsonl', prepared_rows)
     print(f'[prepared] input_rows={len(rows)} prepared_rows={len(prepared_rows)}')
@@ -138,8 +137,8 @@ def main() -> None:
         embeddings = np.load(embeddings_path)
         print(f'[cache] loaded embeddings {embeddings.shape}')
     else:
-        embedding_model = SentenceTransformer(args.embedding_model)
-        embeddings = embedding_model.encode(docs, batch_size=32, show_progress_bar=True, normalize_embeddings=True)
+        model = SentenceTransformer(args.embedding_model)
+        embeddings = model.encode(docs, batch_size=32, show_progress_bar=True, normalize_embeddings=True)
         embeddings = np.asarray(embeddings)
         np.save(embeddings_path, embeddings)
         print(f'[embed] saved embeddings {embeddings.shape}')
@@ -151,59 +150,69 @@ def main() -> None:
         metric='cosine',
         random_state=args.random_seed,
     )
-    hdbscan_model = HDBSCAN(
+    reduced = umap_model.fit_transform(embeddings)
+    print(f'[umap] reduced_shape={reduced.shape}')
+
+    cluster_model = HDBSCAN(
         min_cluster_size=10,
         min_samples=5,
         metric='euclidean',
         cluster_selection_method='eom',
         prediction_data=False,
     )
-    vectorizer_model = CountVectorizer(stop_words='english', ngram_range=(1, 3))
-    topic_model = BERTopic(
-        embedding_model=None,
-        umap_model=umap_model,
-        hdbscan_model=hdbscan_model,
-        vectorizer_model=vectorizer_model,
-        top_n_words=args.top_n_words,
-        calculate_probabilities=False,
-        verbose=True,
-    )
-    topics, _ = topic_model.fit_transform(docs, embeddings)
+    topics = cluster_model.fit_predict(reduced)
+    print(f'[cluster] labels={len(set(topics))} noise={(topics == -1).sum()}')
 
-    doc_info = topic_model.get_document_info(docs)
+    vectorizer = CountVectorizer(stop_words='english', ngram_range=(1, 3))
+    ctfidf = ClassTfidfTransformer()
+
+    topic_docs: dict[int, list[str]] = defaultdict(list)
+    topic_rows: dict[int, list[dict[str, Any]]] = defaultdict(list)
     assignments: list[dict[str, Any]] = []
-    for prepared, topic, _, row in zip(prepared_rows, topics, docs, doc_info.to_dict(orient='records')):
+    for prepared, topic in zip(prepared_rows, topics):
+        topic = int(topic)
         rec = dict(prepared)
-        rec['topic_id'] = int(topic)
-        rec['is_noise'] = int(topic) == -1
-        rec['topic_name'] = row.get('Name')
-        rec['representative'] = row.get('Representative_document')
+        rec['topic_id'] = topic
+        rec['is_noise'] = topic == -1
         assignments.append(rec)
+        if topic != -1:
+            topic_docs[topic].append(prepared['cleaned_message'])
+            topic_rows[topic].append(prepared)
     write_jsonl(output_root / 'topic_assignments.jsonl', assignments)
 
-    topic_info = topic_model.get_topic_info().to_dict(orient='records')
-    (output_root / 'topic_info.json').write_text(json.dumps(topic_info, indent=2, ensure_ascii=False), encoding='utf-8')
-
+    topic_keywords_rows: list[dict[str, Any]] = []
     topic_examples: dict[str, list[dict[str, Any]]] = {}
-    by_topic: dict[int, list[dict[str, Any]]] = {}
-    for rec in assignments:
-        by_topic.setdefault(rec['topic_id'], []).append(rec)
-    for topic_id, rows_for_topic in by_topic.items():
-        if topic_id == -1:
-            continue
-        topic_examples[str(topic_id)] = [
-            {
-                'match_id': r['match_id'],
-                'repo_full_name': r['repo_full_name'],
-                'raw_message': r['raw_message'],
-                'first_change_commit_oid': r['first_change_commit_oid'],
-            }
-            for r in rows_for_topic[:10]
-        ]
+    if topic_docs:
+        ordered_topics = sorted(topic_docs)
+        joined_docs = [' '.join(topic_docs[t]) for t in ordered_topics]
+        bow = vectorizer.fit_transform(joined_docs)
+        ctfidf_matrix = ctfidf.fit_transform(bow)
+        feature_names = np.asarray(vectorizer.get_feature_names_out())
+        for row_idx, topic_id in enumerate(ordered_topics):
+            scores = ctfidf_matrix[row_idx].toarray().ravel()
+            best_idx = scores.argsort()[::-1][: args.top_n_words]
+            keywords = [feature_names[i] for i in best_idx if scores[i] > 0]
+            reps = topic_rows[topic_id][:10]
+            topic_keywords_rows.append({
+                'topic_id': int(topic_id),
+                'document_count': len(topic_rows[topic_id]),
+                'keywords': keywords,
+                'representative_messages': [r['raw_message'] for r in reps],
+            })
+            topic_examples[str(topic_id)] = [
+                {
+                    'match_id': r['match_id'],
+                    'repo_full_name': r['repo_full_name'],
+                    'raw_message': r['raw_message'],
+                    'first_change_commit_oid': r['first_change_commit_oid'],
+                }
+                for r in reps
+            ]
+    write_jsonl(output_root / 'topic_keywords.jsonl', topic_keywords_rows)
     (output_root / 'topic_examples.json').write_text(json.dumps(topic_examples, indent=2, ensure_ascii=False), encoding='utf-8')
 
-    topic_info_non_noise = [row for row in topic_info if int(row.get('Topic', -1)) != -1]
-    noise_count = next((int(row.get('Count', 0)) for row in topic_info if int(row.get('Topic', -999)) == -1), 0)
+    topic_counter = Counter(int(t) for t in topics)
+    non_noise_counts = {str(k): v for k, v in sorted(topic_counter.items()) if k != -1}
     summary = {
         'input_rows': len(rows),
         'prepared_rows': len(prepared_rows),
@@ -220,9 +229,10 @@ def main() -> None:
             'metric': 'euclidean',
             'cluster_selection_method': 'eom',
         },
-        'topic_count_excluding_noise': len(topic_info_non_noise),
-        'noise_document_count': noise_count,
-        'non_noise_document_count': len(prepared_rows) - noise_count,
+        'topic_count_excluding_noise': len(non_noise_counts),
+        'noise_document_count': topic_counter.get(-1, 0),
+        'non_noise_document_count': len(prepared_rows) - topic_counter.get(-1, 0),
+        'topic_document_counts': non_noise_counts,
     }
     (output_root / 'summary.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
     print(f"[done] prepared={len(prepared_rows)} topics={summary['topic_count_excluding_noise']} noise={summary['noise_document_count']}")

@@ -19,7 +19,7 @@ This repository contains the replication package for the paper. It is organized 
    The main scripts needed to reproduce the key computational stages:
    - code-block extraction from introduction commits
    - LLM-based annotation
-   - first-change commit clustering
+   - manual first-change commit clustering
 
 This repository intentionally excludes semantic grouping, since that stage is meant to be performed manually by human researchers.
 
@@ -29,4 +29,3 @@ This repository intentionally excludes semantic grouping, since that stage is me
 - Total comment + code block records: `35,278`
 - Connected comment + code block + first-change commit records: `12,996`
 - Comment + code block records without a successfully collected first-change commit: `22,282`
-

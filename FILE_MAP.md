@@ -44,4 +44,4 @@
   Script used to run large-scale LLM annotation over the comment/code-block dataset.
 
 - `scripts/cluster_first_change_commits.py`
-  Script used to cluster first-change commit messages with BERTopic.
+  Script used for the manual first-change commit clustering pipeline.
